@@ -161,13 +161,13 @@ function wishMe() {
     
     let greeting;
     if(hr >= 0 && hr < 12) {
-        greeting = "Good Morning DEVA";
+        greeting = "Good Morning Devanarayanan";
     } else if(hr === 12) {
         greeting = "Good Noon Boss";
     } else if(hr > 12 && hr <= 17) {
-        greeting = "Good Afternoon DEVA";
+        greeting = "Good Afternoon Devanarayanan";
     } else {
-        greeting = "Good Evening DEVA";
+        greeting = "Good Evening Devanarayanan";
     }
     
     speak(greeting);
