@@ -1,0 +1,254 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@100;200;300;400;500;600;700&display=swap");
+
+
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Roboto Mono", monospace;
+}
+
+.main {
+    min-height: 100vh;
+    position: relative;
+    width: 100%;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.main .image-container {
+    padding: 10px;
+}
+
+.main .image-container .image {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.main .image-container .image img {
+    width: 170px;
+    align-items: center;
+}
+
+.main .image-container h1 {
+    color: #00bcd4;
+    text-align: center;
+    margin-bottom: 10px;
+    font-size: 40px;
+    text-shadow: 0 0 10px rgba(0, 188, 212, 0.5);
+}
+
+.main .image-container p {
+    color: #324042;
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.main .input {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 40vw;
+    height: 50px;
+    border-radius: 20px;
+    background: rgba(202, 253, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+.main .input:hover {
+    background: rgba(202, 253, 255, 0.2);
+}
+
+.main .input .talk {
+    background: transparent;
+    outline: none;
+    border: none;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 15px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.main .input .talk::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(174, 208, 208, 0.2) 0%, transparent 70%);
+    transform: scale(0);
+    transition: transform 0.5s ease;
+}
+
+.main .input .talk:hover::before {
+    transform: scale(1.5);
+}
+
+.main .input .talk i {
+    font-size: 20px;
+    color: #aed0d0;
+    transition: all 0.3s ease;
+}
+
+/* Active listening animation */
+@keyframes pulseRing {
+    0% { transform: scale(0.8); opacity: 0.5; }
+    50% { transform: scale(1.2); opacity: 0.8; }
+    100% { transform: scale(0.8); opacity: 0.5; }
+}
+
+@keyframes wavePulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.main .input .talk.listening i {
+    color: #ff4444;
+    animation: wavePulse 1.5s infinite;
+}
+
+.main .input .talk.listening::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 2px solid #ff4444;
+    animation: pulseRing 2s infinite;
+}
+
+.main .input .content {
+    color: #aed0d0;
+    font-size: 15px;
+    margin-right: 20px;
+    transition: all 0.3s ease;
+}
+
+/* Status indicator */
+.status-indicator {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: rgba(0, 188, 212, 0.1);
+    color: #00bcd4;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.status-indicator.visible {
+    opacity: 1;
+}
+
+/* Response animation */
+@keyframes responseWave {
+    0% { transform: scaleY(0.5); }
+    50% { transform: scaleY(1.2); }
+    100% { transform: scaleY(0.5); }
+}
+
+.wave-container {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    gap: 3px;
+    height: 20px;
+    margin-left: 10px;
+}
+
+.wave-container.active {
+    display: flex;
+}
+
+.wave {
+    width: 3px;
+    height: 100%;
+    background-color: #00bcd4;
+    animation: responseWave 1s infinite;
+}
+
+.wave:nth-child(2) { animation-delay: 0.1s; }
+.wave:nth-child(3) { animation-delay: 0.2s; }
+.wave:nth-child(4) { animation-delay: 0.3s; }
+
+@media (max-width: 768px) {
+    .main .input {
+        width: 80vw;
+    }
+    
+    .main .image-container h1 {
+        font-size: 30px;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Add these styles to your existing style.css */
+
+.weather-info {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    padding: 15px;
+    border-radius: 10px;
+    background: rgba(202, 253, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #00bcd4;
+    font-size: 14px;
+    max-width: 300px;
+    transition: all 0.3s ease;
+}
+
+.weather-info:hover {
+    background: rgba(202, 253, 255, 0.2);
+}
+
+.weather-loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #00bcd4;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Add this to your media queries */
+@media (max-width: 768px) {
+    .weather-info {
+        position: static;
+        margin: 20px auto;
+        width: 80vw;
+    }
+}
