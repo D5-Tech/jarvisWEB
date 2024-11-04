@@ -320,6 +320,12 @@ async function speakThis(message) {
         window.open("https://instagram.com", "_blank");
         speech.text = "Opening Instagram";
     }
+
+    else if(message.includes('open my instagram')) {
+        window.open("https://www.instagram.com/d5tech/", "_blank");
+        speech.text = "Opening Instagram";
+    }
+
     else if(message.includes('calculator')) {
         window.open('Calculator:///')
         speech.text = "Opening Calculator";
