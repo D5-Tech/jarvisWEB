@@ -5,19 +5,20 @@ let isListening = false;
 let currentUtterance = null;
 let userLocation = null;
 
-// API Keys
-const GEMINI_API_KEY = 'AIzaSyC_CohD_uCGZovkfBnqHzjH3bQxxuN3OJo'; // Replace with your API key
-const OPENWEATHER_API_KEY = 'b76ef054e6fa51739f614769d942f8d9'; // Replace with your OpenWeather API key
-const LANGUAGE_API_KEY = 'f1DG9ydnspULnEIfw61xZ98z07K6btHG'; // Language Translation API key
-
-// API Endpoints
-const geminiEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
-const languageEndpoint = 'https://api.apilayer.com/language_translation/detect';
-
 // Add microphone icon to the button
 const micIcon = document.createElement('i');
 micIcon.className = 'fas fa-microphone';
 btn.appendChild(micIcon);
+
+// API Keys
+const GEMINI_API_KEY = 'AIzaSyC_CohD_uCGZovkfBnqHzjH3bQxxuN3OJo'; // Replace with your API key
+const OPENWEATHER_API_KEY = 'b76ef054e6fa51739f614769d942f8d9'; // Replace with your OpenWeather API key
+const APILAYER_KEY = 'f1DG9ydnspULnEIfw61xZ98z07K6btHG'; // APILayer API Key for Language Detection and Translation
+
+// API Endpoints
+const geminiEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+const languageDetectionEndpoint = 'https://api.apilayer.com/language_translation/detect';
+const translationEndpoint = 'https://api.apilayer.com/language_translation/translate';
 
 // Add status indicator to the DOM
 const statusIndicator = document.createElement('div');
@@ -27,7 +28,7 @@ document.querySelector('.main').appendChild(statusIndicator);
 // Add wave animation container
 const waveContainer = document.createElement('div');
 waveContainer.className = 'wave-container';
-for(let i = 0; i < 4; i++) {
+for (let i = 0; i < 4; i++) {
     const wave = document.createElement('div');
     wave.className = 'wave';
     waveContainer.appendChild(wave);
@@ -65,22 +66,50 @@ async function initializeLocation() {
     });
 }
 
+// Language Detection Function
+async function detectLanguage(text) {
+    try {
+        const response = await fetch(languageDetectionEndpoint, {
+            method: 'POST',
+            headers: { 'apikey': APILAYER_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: text })
+        });
+        if (!response.ok) throw new Error(`Language Detection API returned status: ${response.status}`);
+        const data = await response.json();
+        return data.language_code;
+    } catch (error) {
+        console.error('Error detecting language:', error);
+        return null;
+    }
+}
+
+// Translation Function
+async function translateText(text, targetLang) {
+    try {
+        const response = await fetch(translationEndpoint, {
+            method: 'POST',
+            headers: { 'apikey': APILAYER_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, target_language: targetLang })
+        });
+        if (!response.ok) throw new Error(`Translation API returned status: ${response.status}`);
+        const data = await response.json();
+        return data.translation_text;
+    } catch (error) {
+        console.error('Error translating text:', error);
+        return text;
+    }
+}
+
 // Weather Functions
 async function getWeather() {
     try {
         if (!userLocation) {
-            // Try to get location if not already set
             userLocation = await initializeLocation();
         }
-
         const response = await fetch(
             `https://api.openweathermap.org/data/2.5/weather?lat=${userLocation.lat}&lon=${userLocation.lon}&appid=${OPENWEATHER_API_KEY}&units=metric`
         );
-        
-        if (!response.ok) {
-            throw new Error(`Weather API returned status: ${response.status}`);
-        }
-        
+        if (!response.ok) throw new Error(`Weather API returned status: ${response.status}`);
         const data = await response.json();
         return `The current weather in ${data.name} is ${data.weather[0].description} with a temperature of ${Math.round(data.main.temp)}°C. The humidity is ${data.main.humidity}% and wind speed is ${data.wind.speed} meters per second.`;
     } catch (error) {
@@ -94,30 +123,21 @@ async function getWeatherForecast() {
         if (!userLocation) {
             userLocation = await initializeLocation();
         }
-
         const response = await fetch(
             `https://api.openweathermap.org/data/2.5/forecast?lat=${userLocation.lat}&lon=${userLocation.lon}&appid=${OPENWEATHER_API_KEY}&units=metric`
         );
-        
-        if (!response.ok) {
-            throw new Error(`Weather API returned status: ${response.status}`);
-        }
-        
+        if (!response.ok) throw new Error(`Weather API returned status: ${response.status}`);
         const data = await response.json();
-        
         let forecast = "Here's the weather forecast: ";
         const uniqueDays = new Set();
-        
         for (const item of data.list) {
             const date = new Date(item.dt * 1000);
             const day = date.toLocaleDateString('en-US', { weekday: 'long' });
-            
             if (!uniqueDays.has(day) && uniqueDays.size < 3) {
                 uniqueDays.add(day);
                 forecast += `${day}: ${item.weather[0].description} with a high of ${Math.round(item.main.temp_max)}°C. `;
             }
         }
-        
         return forecast;
     } catch (error) {
         console.error('Error fetching forecast:', error);
@@ -126,184 +146,52 @@ async function getWeatherForecast() {
 }
 
 // Speech Functions
-function speak(sentence, language) {
-    // Cancel any ongoing speech
+function speak(sentence, lang = 'en-US') {
     window.speechSynthesis.cancel();
-    
     const text_speak = new SpeechSynthesisUtterance(sentence);
+    text_speak.lang = lang;
     text_speak.rate = 1;
     text_speak.pitch = 1;
-    text_speak.lang = language; // Set the language of the speech
-    
-    // Store the current utterance
     currentUtterance = text_speak;
-    
-    // Show speaking animation
     waveContainer.classList.add('active');
-    
     text_speak.onend = () => {
         waveContainer.classList.remove('active');
         currentUtterance = null;
     };
-    
     window.speechSynthesis.speak(text_speak);
 }
 
-// Language Detection Function
-async function detectLanguage(text) {
+// Status Indicator Function
+function showStatus(message, duration = 2000) {
+    statusIndicator.textContent = message;
+    statusIndicator.classList.add('visible');
+    setTimeout(() => {
+        statusIndicator.classList.remove('visible');
+    }, duration);
+}
+
+// Greetings
+function wishMe() {
+    const hr = new Date().getHours();
+    let greeting;
+    if (hr >= 0 && hr < 12) greeting = "Good Morning Devanarayanan";
+    else if (hr === 12) greeting = "Good Noon Boss";
+    else if (hr > 12 && hr <= 17) greeting = "Good Afternoon Devanarayanan";
+    else greeting = "Good Evening Devanarayanan";
+    speak(greeting);
+}
+
+// Initialize Jarvis
+window.addEventListener('load', async () => {
+    speak("Activating Jarvis");
     try {
-        const response = await fetch(`${languageEndpoint}?api_key=${LANGUAGE_API_KEY}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-                text: text
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Language API returned status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        return data.language;
-    } catch (error) {
-        console.error('Error detecting language:', error);
-        return 'en'; // Default to English if detection fails
+        await initializeLocation();
+        setTimeout(() => speak("Going online"), 1500);
+        setTimeout(wishMe, 3000);
+    } catch {
+        speak("I'm online, but I'll need location permission for weather features.");
     }
-}
-
-async function speakThis(message) {
-    const language = await detectLanguage(message);
-    const speech = new SpeechSynthesisUtterance();
-    
-    // Weather-related queries
-    if (message.includes('weather')) {
-        if (message.includes('forecast') || message.includes('prediction') || message.includes('tomorrow')) {
-            speech.text = await getWeatherForecast();
-        } else {
-            speech.text = await getWeather();
-        }
-    }
-    // Name and Developer Info
-    else if(message.includes('what is your name') || message.includes('who are you')) {
-        speech.text = "I am Jarvis. Would you like to know more about my developer?";
-        // Store the state to handle the follow-up response
-        window.waitingForDevInfo = true;
-    }
-    // Handle the follow-up response about developer
-    else if(window.waitingForDevInfo && 
-           (message.includes('yes') || message.includes('sure') || message.includes('okay'))) {
-        speech.text = "I was developed by Devanarayanan, a first-year B.Tech student in Robotics and Automation with a strong background in front-end development. You have six years of experience on YouTube, where you have about 100,000 subscribers and over 300 videos. You are also an innovator, a holder of the India Book of Records, and have participated in various hackathons, winning several awards. You have your own startup in collaboration with Talrop and have created projects for companies and educational institutions. Currently, you are involved in a waste management hackathon, designing a multipurpose robot for waste collection and separation. You are studying topics in Engineering Physics and Python and are actively looking for project ideas that require minimal hardware. You have earned over 30 certificates and have been featured in various media outlets for your work.";
-        window.waitingForDevInfo = false;
-    }
-    else if(window.waitingForDevInfo && 
-           (message.includes('no') || message.includes('nope'))) {
-        speech.text = "Alright, let me know if you need anything else.";
-        window.waitingForDevInfo = false;
-    }
-    // System Commands
-    else if(message.includes('open google')) {
-        window.open("https://google.com", "_blank");
-        speech.text = "Opening Google";
-    }
-    else if(message.includes('open youtube')) {
-        window.open("https://youtube.com", "_blank");
-        speech.text = "Opening YouTube";
-    }
-    else if(message.includes('open instagram')) {
-        window.open("https://instagram.com", "_blank");
-        speech.text = "Opening Instagram";
-    }
-    else if(message.includes('open my instagram')) {
-        window.open("https://www.instagram.com/d5tech/", "_blank");
-        speech.text = "Opening Instagram";
-    }
-    else if(message.includes('calculator')) {
-        window.open('Calculator:///')
-        speech.text = "Opening Calculator";
-    }
-    else if(message.includes('what is the time')) {
-        const time = new Date().toLocaleString(undefined, {hour: "numeric", minute: "numeric"})
-        speech.text = time;
-    }
-    else if(message.includes('what is the date')) {
-        const date = new Date().toLocaleString(undefined, {month: "short", day: "numeric"})
-        speech.text = date;
-    }
-    // Explicit Google Search Command
-    else if(message.includes('search on google')) {
-        const searchQuery = message.replace('search on google', '').trim();
-        window.open(`https://www.google.com/search?q=${searchQuery.replace(/ /g, "+")}`, "_blank");
-        speech.text = "I've searched Google for " + searchQuery;
-    }
-    // Gemini AI Response
-    else {
-        try {
-            const geminiResponse = await askGemini(message, language);
-            
-            // Check if Gemini suggests a web search
-            if(geminiResponse.toLowerCase().includes('search') || 
-               geminiResponse.toLowerCase().includes('look up') ||
-               geminiResponse.toLowerCase().includes('find online')) {
-                window.open(`https://www.google.com/search?q=${message.replace(/ /g, "+")}`, "_blank");
-                speech.text = "Let me search that for you online.";
-            } else {
-                speech.text = geminiResponse;
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            speech.text = "I'm having trouble connecting to my AI systems. Please try again.";
-        }
-    }
-
-    speak(speech.text, language);
-}
-
-// Gemini AI Integration
-async function askGemini(prompt, language) {
-    try {
-        const contextualPrompt = `As an AI assistant named Jarvis developed by Devanarayanan, respond to: ${prompt}
-        Keep the response concise and conversational. If it's a question requiring specific data 
-        or web searches, indicate that. If it's a task you can help with directly, provide the solution.`;
-
-        const response = await fetch(`${geminiEndpoint}?key=${GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: contextualPrompt
-                    }]
-                }],
-                generationConfig: {
-                    temperature: 0.7,
-                    maxOutputTokens: 200,
-                    language: language // Set the target language
-                }
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Gemini API returned status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        return data.candidates[0].content.parts[0].text;
-    } catch (error) {
-        console.error('Error calling Gemini:', error);
-        return "I'm sorry, I couldn't process that request due to a connection issue.";
-    }
-}
-
-// Error Handler
-function handleError(error) {
-    console.error('Error:', error);
-    speak("I encountered an error. Please try again.");
-}
+});
 
 // Speech Recognition Setup
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -315,9 +203,7 @@ recognition.onstart = () => {
     isListening = true;
     btn.classList.add('listening');
     showStatus('Listening...');
-    
-    // Cancel any ongoing speech when starting to listen
-    if(currentUtterance) {
+    if (currentUtterance) {
         window.speechSynthesis.cancel();
         waveContainer.classList.remove('active');
     }
@@ -329,11 +215,22 @@ recognition.onend = () => {
     showStatus('Stopped listening');
 };
 
-recognition.onresult = (event) => {
-    const current = event.resultIndex;
-    const transcript = event.results[current][0].transcript;
-    content.textContent = transcript;
-    speakThis(transcript.toLowerCase());
+recognition.onresult = async (event) => {
+    const transcript = event.results[0][0].transcript;
+    content.textContent = transcript; // Display spoken text
+
+    // Detect language
+    const detectedLang = await detectLanguage(transcript);
+    let responseText = '';
+
+    // Handle response based on detected language
+    if (detectedLang === 'ml') {
+        responseText = await handleResponse(transcript, 'ml');
+        speak(responseText, 'ml-IN'); // Speak in Malayalam
+    } else {
+        responseText = await handleResponse(transcript, 'en');
+        speak(responseText, 'en-US'); // Speak in English
+    }
 };
 
 recognition.onerror = (event) => {
@@ -342,61 +239,61 @@ recognition.onerror = (event) => {
     btn.classList.remove('listening');
 };
 
-// Button click handler with interrupt functionality
+// Toggle speech recognition
 btn.addEventListener('click', () => {
-    if(isListening) {
+    if (isListening) {
         recognition.stop();
-    } else if(currentUtterance) {
-        // If currently speaking, stop and start listening
-        window.speechSynthesis.cancel();
-        waveContainer.classList.remove('active');
-        recognition.start();
     } else {
         recognition.start();
     }
 });
 
-// Status Indicator Function
-function showStatus(message, duration = 2000) {
-    statusIndicator.textContent = message;
-    statusIndicator.classList.add('visible');
-    setTimeout(() => {
-        statusIndicator.classList.remove('visible');
-    }, duration);
-}
-
-function wishMe() {
-    const day = new Date();
-    const hr = day.getHours();
-    
-    let greeting;
-    if(hr >= 0 && hr < 12) {
-        greeting = "Good Morning Devanarayanan";
-    } else if(hr === 12) {
-        greeting = "Good Noon Boss";
-    } else if(hr > 12 && hr <= 17) {
-        greeting = "Good Afternoon Devanarayanan";
+// Response handling for both languages
+async function handleResponse(message, lang) {
+    let response;
+    if (message.includes(lang === 'ml' ? 'കാലാവസ്ഥ' : 'weather')) {
+        response = await getWeather();
+    } else if (message.includes(lang === 'ml' ? 'കാലാവസ്ഥ പ്രവചനം' : 'forecast')) {
+        response = await getWeatherForecast();
+    } else if (message.includes(lang === 'ml' ? 'നിങ്ങളുടെ പേര്' : 'what is your name') || message.includes('who are you')) {
+        response = "I am Jarvis. Would you like to know more about my developer?";
+        window.waitingForDevInfo = true;
+    } else if (window.waitingForDevInfo && (message.includes('yes') || message.includes('sure'))) {
+        response = "I was developed by Devanarayanan, a B.Tech student specializing in Robotics and Automation with a strong background in front-end development...";
+        window.waitingForDevInfo = false;
+    } else if (window.waitingForDevInfo && (message.includes('no') || message.includes('nope'))) {
+        response = "Alright, let me know if you need anything else.";
+        window.waitingForDevInfo = false;
+    } else if (message.includes('open google')) {
+        window.open("https://google.com", "_blank");
+        response = "Opening Google";
+    } else if (message.includes('open youtube')) {
+        window.open("https://youtube.com", "_blank");
+        response = "Opening YouTube";
     } else {
-        greeting = "Good Evening Devanarayanan";
+        response = await askGemini(message); // Default Gemini AI response
     }
-    
-    speak(greeting, 'en'); // Speak the greeting in English
+
+    return lang === 'ml' ? await translateText(response, 'ml') : response;
 }
 
-// Initialize Jarvis
-window.addEventListener('load', async () => {
-    speak("Activating Jarvis", 'en');
-    
+// Gemini AI Integration
+async function askGemini(prompt) {
     try {
-        // Initialize location immediately
-        await initializeLocation();
-        
-        setTimeout(() => {
-            speak("Going online", 'en');
-            setTimeout(wishMe, 1500);
-        }, 1500);
+        const contextualPrompt = `Respond to: ${prompt}`;
+        const response = await fetch(`${geminiEndpoint}?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: contextualPrompt }] }],
+                generationConfig: { temperature: 0.7, maxOutputTokens: 200 }
+            })
+        });
+        if (!response.ok) throw new Error(`Gemini API returned status: ${response.status}`);
+        const data = await response.json();
+        return data.candidates[0].content.parts[0].text;
     } catch (error) {
-        console.error('Error during initialization:', error);
-        speak("I'm online, but I'll need location permission for weather features.", 'en');
+        console.error('Error calling Gemini:', error);
+        return "I'm having trouble connecting to my AI systems. Please try again.";
     }
-});
+}
