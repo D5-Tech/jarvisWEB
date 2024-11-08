@@ -321,7 +321,7 @@ async function speakThis(message) {
         speech.text = "Opening Instagram";
     }
 
-    else if(message.includes('open my instagram')) {
+    else if(message.includes('open my    instagram')) {
         window.open("https://www.instagram.com/d5tech/", "_blank");
         speech.text = "Opening Instagram";
     }
