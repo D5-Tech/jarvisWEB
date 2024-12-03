@@ -83,6 +83,23 @@ async function detectLanguage(text) {
     }
 }
 
+// Function to convert Manglish (transcribed Malayalam in English letters) to Malayalam script
+async function convertManglishToMalayalam(text) {
+    try {
+        const response = await fetch(translationEndpoint, {
+            method: 'POST',
+            headers: { 'apikey': APILAYER_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: text, source_language: 'en', target_language: 'ml' })
+        });
+        if (!response.ok) throw new Error(`Translation API returned status: ${response.status}`);
+        const data = await response.json();
+        return data.translation_text;
+    } catch (error) {
+        console.error('Error translating Manglish to Malayalam:', error);
+        return text; // Return original text if translation fails
+    }
+}
+
 // Translation Function
 async function translateText(text, targetLang) {
     try {
@@ -217,21 +234,28 @@ recognition.onend = () => {
 
 recognition.onresult = async (event) => {
     const transcript = event.results[0][0].transcript;
-    content.textContent = transcript; // Display spoken text
-
-    // Detect language
+    
+    // Attempt to detect language and convert Manglish to Malayalam if needed
+    let translatedText = transcript;
     const detectedLang = await detectLanguage(transcript);
-    let responseText = '';
-
-    // Handle response based on detected language
+    
     if (detectedLang === 'ml') {
-        responseText = await handleResponse(transcript, 'ml');
+        // Convert Manglish (Malayalam in English script) to Malayalam script
+        translatedText = await convertManglishToMalayalam(transcript);
+    }
+    
+    content.textContent = translatedText; // Display text in Malayalam or original English
+
+    let responseText = '';
+    if (detectedLang === 'ml') {
+        responseText = await handleResponse(translatedText, 'ml');
         speak(responseText, 'ml-IN'); // Speak in Malayalam
     } else {
         responseText = await handleResponse(transcript, 'en');
         speak(responseText, 'en-US'); // Speak in English
     }
 };
+
 
 recognition.onerror = (event) => {
     console.error('Speech recognition error:', event.error);
